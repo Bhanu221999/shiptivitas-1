@@ -7,20 +7,20 @@ import './Board.css';
 export default class Board extends React.Component {
   constructor(props) {
     super(props);
-    const clients = this.getClients();
     this.state = {
-      clients: {
-        backlog: clients.filter(client => !client.status || client.status === 'backlog'),
-        inProgress: clients.filter(client => client.status && client.status === 'in-progress'),
-        complete: clients.filter(client => client.status && client.status === 'complete'),
-      }
-    }
+      clients: this.getClients()
+    };
     this.swimlanes = {
       backlog: React.createRef(),
       inProgress: React.createRef(),
-      complete: React.createRef(),
-    }
+      complete: React.createRef()
+    };
   }
+
+  componentDidMount() {
+    this.initializeDragula();
+  }
+
   getClients() {
     return [
       ['1','Stark, White and Abbott','Cloned Optimal Architecture', 'in-progress'],
@@ -50,25 +50,65 @@ export default class Board extends React.Component {
       status: companyDetails[3],
     }));
   }
+
+  initializeDragula() {
+// eslint-disable-next-line no-unused-vars
+const drake = Dragula([
+    this.swimlanes.backlog.current,
+    this.swimlanes.inProgress.current,
+    this.swimlanes.complete.current
+  ], {
+      moves: (el, source, handle, sibling) => {
+        return true; // Allow dragging of all elements
+      },
+      accepts: (el, target, source, sibling) => {
+        return true; // Allow dropping in all swimlanes
+      },
+      drop: (el, target, source, sibling) => {
+        this.handleCardDrop(el, target);
+      }
+    });
+  }
+
+  handleCardDrop(card, targetSwimlane) {
+    const { clients } = this.state;
+    const cardId = card.dataset.id;
+    const cardStatus = targetSwimlane.className.includes('Swimlane-backlog')
+      ? 'backlog'
+      : targetSwimlane.className.includes('Swimlane-inProgress')
+        ? 'in-progress'
+        : 'complete';
+
+    const updatedClients = clients.map(client => {
+      if (client.id === cardId) {
+        return { ...client, status: cardStatus };
+      }
+      return client;
+    });
+
+    this.setState({ clients: updatedClients });
+  }
+
   renderSwimlane(name, clients, ref) {
     return (
-      <Swimlane name={name} clients={clients} dragulaRef={ref}/>
+      <Swimlane name={name} clients={clients} dragulaRef={ref} />
     );
   }
 
   render() {
+    const { clients } = this.state;
     return (
       <div className="Board">
         <div className="container-fluid">
           <div className="row">
+          <div className="col-md-4">
+  {this.renderSwimlane('Backlog', this.state.clients, this.swimlanes.backlog)}
+</div>
             <div className="col-md-4">
-              {this.renderSwimlane('Backlog', this.state.clients.backlog, this.swimlanes.backlog)}
+              {this.renderSwimlane('In Progress', clients.filter(client => client.status && client.status === 'in-progress'), this.swimlanes.inProgress)}
             </div>
             <div className="col-md-4">
-              {this.renderSwimlane('In Progress', this.state.clients.inProgress, this.swimlanes.inProgress)}
-            </div>
-            <div className="col-md-4">
-              {this.renderSwimlane('Complete', this.state.clients.complete, this.swimlanes.complete)}
+              {this.renderSwimlane('Complete', clients.filter(client => client.status && client.status === 'complete'), this.swimlanes.complete)}
             </div>
           </div>
         </div>
